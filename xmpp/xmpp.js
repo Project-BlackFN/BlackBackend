@@ -16,16 +16,23 @@ const matchmaker = require("../matchmaker/matchmaker.js")
 const port = 4309;
 let wss;
 
+const sslDir = path.resolve(__dirname, "../ssl");
+const certPath = path.join(sslDir, "fullchain.pem");
+const keyPath = path.join(sslDir, "privkey.key");
+
+let useHTTPS = false;
 let httpsOptions;
-if (config.bEnableHTTPS) {
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     httpsOptions = {
-        cert: fs.readFileSync(config.ssl.cert),
-        ca: fs.existsSync(config.ssl.ca) ? fs.readFileSync(config.ssl.ca) : undefined,
-        key: fs.readFileSync(config.ssl.key)
+        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync(keyPath)
     };
+    useHTTPS = true;
 }
 
-if (config.bEnableHTTPS) {
+
+if (useHTTPS) {
     const httpsServer = https.createServer(httpsOptions, app);
     wss = new WebSocket({ server: httpsServer });
     httpsServer.listen(port, () => {
