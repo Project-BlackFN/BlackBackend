@@ -80,37 +80,36 @@ fs.readdirSync("./routes").forEach(fileName => {
     catch (err) { log.error(`Routes Error: Failed to load ${fileName}`); }
 });
 
-fs.readdirSync("./Api").forEach(fileName => {
-    try { app.use(require(`./Api/${fileName}`)); } 
-    catch (err) { log.error(`Reload API Error: Failed to load ${fileName}`); }
+fs.readdirSync("./BetterReload").forEach(fileName => {
+    try { app.use(require(`./BetterReload/${fileName}`)); } 
+    catch (err) { log.error(`BetterReload Error: Failed to load ${fileName}`); }
 });
 
 app.get("/unknown", (req, res) => {
     log.debug('GET /unknown endpoint called');
-    res.json({ msg: "Reload Backend - Made by Burlone" });
 });
 
 let server;
 if (useHTTPS) {
     server = httpsServer.listen(PORT, () => {
-        log.backend(`Backend started listening on port ${PORT} (SSL Enabled)`);
+        log.backend(`Backend started listening on port ${PORT}`);
         require("./xmpp/xmpp.js");
         require("./DiscordBot");
     }).on("error", async (err) => {
         if (err.code === "EADDRINUSE") {
-            log.error(`Port ${PORT} is already in use!\nClosing in 3 seconds...`);
+            log.error(`Port ${PORT} is already in use!.`);
             await functions.sleep(3000);
             process.exit(0);
         } else throw err;
     });
 } else {
     server = app.listen(PORT, () => {
-        log.backend(`Backend started listening on port ${PORT} (SSL Disabled)`);
+        log.backend(`Backend started listening on port ${PORT} (no SSL)`);
         require("./xmpp/xmpp.js");
         require("./DiscordBot");
     }).on("error", async (err) => {
         if (err.code === "EADDRINUSE") {
-            log.error(`Port ${PORT} is already in use!\nClosing in 3 seconds...`);
+            log.error(`Port ${PORT} is already in use!`);
             await functions.sleep(3000);
             process.exit(0);
         } else throw err;
