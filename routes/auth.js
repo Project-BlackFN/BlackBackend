@@ -58,7 +58,7 @@ app.post("/account/api/oauth/token", async (req, res) => {
             let clientToken = global.clientTokens.findIndex(i => i.ip == ip);
             if (clientToken != -1) global.clientTokens.splice(clientToken, 1);
 
-            const token = tokenCreation.createClient(clientId, req.body.grant_type, ip, 4); // expires in 4 hours
+            const token = tokenCreation.createClient(clientId, req.body.grant_type, ip, 4);
 
             functions.UpdateTokens();
 
@@ -211,15 +211,13 @@ app.post("/account/api/oauth/token", async (req, res) => {
         );
     }
 
-    if (config.bEnableOnlyOneVersionJoinable === true) {
-        if (memory.build != config.bVersionJoinable) {
-            log.debug("Someone is logging in from a blocked version.");
-            return error.createError(
-                "errors.com.epicgames.version_not_supported",
-                "This version is blocked, change bSeasonJoinable or disable bEnableOnlyOneSeasonJoinable on Reload config.", 
-                [], -1, undefined, 400, res
-            );
-        }
+    if (memory.build != config.bVersionJoinable) {
+        log.debug("Someone is logging in from a blocked version.");
+        return error.createError(
+            "errors.com.epicgames.version_not_supported",
+            "This version is blocked", 
+            [], -1, undefined, 400, res
+        );
     }
 
     let refreshIndex = global.refreshTokens.findIndex(i => i.accountId == req.user.accountId);
@@ -234,8 +232,8 @@ app.post("/account/api/oauth/token", async (req, res) => {
     }
 
     const deviceId = functions.MakeID().replace(/-/ig, "");
-    const accessToken = tokenCreation.createAccess(req.user, clientId, req.body.grant_type, deviceId, 8); // expires in 8 hours
-    const refreshToken = tokenCreation.createRefresh(req.user, clientId, req.body.grant_type, deviceId, 24); // expires in 24 hours
+    const accessToken = tokenCreation.createAccess(req.user, clientId, req.body.grant_type, deviceId, 8);
+    const refreshToken = tokenCreation.createRefresh(req.user, clientId, req.body.grant_type, deviceId, 24);
 
     functions.UpdateTokens();
 
@@ -268,15 +266,13 @@ app.get("/account/api/oauth/verify", verifyToken, (req, res) => {
 
     log.debug(`GET /account/api/oauth/verify called for account: ${req.user.accountId}`);
 
-    if (config.bEnableOnlyOneVersionJoinable === true) {
-        if (memory.build != config.bVersionJoinable) {
-            log.debug("Someone is logging in from a blocked version.");
-            return error.createError(
-                "errors.com.epicgames.version_not_supported",
-                "This version is no longer supported, change bSeasonJoinable or disable bEnableOnlyOneSeasonJoinable on Reload config.", 
-                [], -1, undefined, 400, res
-            );
-        }
+    if (memory.build != config.bVersionJoinable) {
+        log.debug("Someone is logging in from a blocked version.");
+        return error.createError(
+            "errors.com.epicgames.version_not_supported",
+            "This version is no longer supported.", 
+            [], -1, undefined, 400, res
+        );
     }
 
     res.json({
@@ -302,7 +298,6 @@ app.get("/account/api/oauth/exchange", verifyToken, (req, res) => {
     return res.status(400).json({
         "error": "This endpoint is deprecated, please use the discord bot to generate an exchange code."
     });
-    // remove the return code above if you still want to make use of this endpoint
 
     let token = req.headers["authorization"].replace("bearer ", "");
     const exchange_code = functions.MakeID().replace(/-/ig, "");
@@ -319,7 +314,7 @@ app.get("/account/api/oauth/exchange", verifyToken, (req, res) => {
         let exchangeCode = global.exchangeCodes.findIndex(i => i.exchange_code == exchange_code);
 
         if (exchangeCode != -1) global.exchangeCodes.splice(exchangeCode, 1);
-    }, 300000) // remove exchange code in 5 minutes if unused
+    }, 300000)
 
     res.json({
         expiresInSeconds: 300,

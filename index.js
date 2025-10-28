@@ -63,18 +63,6 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "./package.j
 if (!packageJson) throw new Error("Failed to parse package.json");
 const version = packageJson.version;
 
-const checkUpdates = async () => {
-    if (updateFound) return;
-    try {
-        const updateAvailable = await CheckForUpdate.checkForUpdate(version);
-        if (updateAvailable) updateFound = true;
-    } catch (err) {
-        log.error("Failed to check for updates");
-    }
-};
-checkUpdates();
-setInterval(checkUpdates, 60000);
-
 mongoose.set('strictQuery', true);
 mongoose.connect(config.mongodb.database, () => {
     log.backend("App successfully connected to MongoDB!");

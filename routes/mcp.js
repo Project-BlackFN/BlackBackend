@@ -1860,12 +1860,11 @@ app.post("/fortnite/api/game/v2/profile/*/client/PurchaseCatalogEntry", verifyTo
         );
     }
 
-    if (config.bEnableBattlepass === true) {
-        if (memory.season == config.bBattlePassSeason) {
-            log.debug(`PurchaseCatalogEntry: Battle Pass season ${config.bBattlePassSeason} enabled`);
+        if (memory.season == config.bSeason) {
+            log.debug(`PurchaseCatalogEntry: Battle Pass season ${config.bSeason} enabled`);
 
-            var season = `Season${config.bBattlePassSeason}`; // Don't change it if you don't know what it is
-            var OnlySeasonNumber = `${config.bBattlePassSeason}`;
+            var season = `Season${config.bSeason}`; // Don't change it if you don't know what it is
+            var OnlySeasonNumber = `${config.bSeason}`;
             var ItemExists = false;
             let BattlePass = JSON.parse(fs.readFileSync(path.join(__dirname, "../responses/Athena/BattlePass/", `${season}.json`), "utf8"));
             if (!BattlePass) {
@@ -2394,8 +2393,6 @@ app.post("/fortnite/api/game/v2/profile/*/client/PurchaseCatalogEntry", verifyTo
                 }
                 return;
             }
-        }
-    }
 
     switch (true) {
         case /^BR(Daily|Weekly|Season)Storefront$/.test(findOfferId.name):
@@ -2558,41 +2555,39 @@ app.post("/fortnite/api/game/v2/profile/*/client/PurchaseCatalogEntry", verifyTo
         }];
     }
 
-    if (config.bEnableSACRewards === true) {
-        const user = await User.findOne({ accountId: req.user.accountId });
+    const user = await User.findOne({ accountId: req.user.accountId });
         
-        if (user && user.currentSACCode) {
-            const sacCodeEntry = await SACCodeModel.findOne({ 
-                $or: [
-                    { code: user.currentSACCode },
-                    { code_lower: user.currentSACCode.toLowerCase() },
-                    { code_higher: user.currentSACCode.toUpperCase() }
-                ]
-            });
+    if (user && user.currentSACCode) {
+        const sacCodeEntry = await SACCodeModel.findOne({ 
+            $or: [
+                { code: user.currentSACCode },
+                { code_lower: user.currentSACCode.toLowerCase() },
+                { code_higher: user.currentSACCode.toUpperCase() }
+            ]
+        });
             
-            if (sacCodeEntry) {
-                let findOfferId = functions.getOfferID(req.body.offerId);
-                let purchaseQuantity = req.body.purchaseQuantity || 1;
-                let totalPrice = findOfferId.offerId.prices[0].finalPrice * purchaseQuantity;
-                const rewardAmount = (totalPrice * config.bPercentageSACRewards) / 100;
+        if (sacCodeEntry) {
+            let findOfferId = functions.getOfferID(req.body.offerId);
+            let purchaseQuantity = req.body.purchaseQuantity || 1;
+            let totalPrice = findOfferId.offerId.prices[0].finalPrice * purchaseQuantity;
+            const rewardAmount = (totalPrice * 25) / 100;
 
-                const profile = await Profile.findOneAndUpdate(
-                    { accountId: sacCodeEntry.owneraccountId }, 
-                    { $inc: { 'profiles.common_core.items.Currency:MtxPurchased.quantity': rewardAmount } }
-                );
+            const profile = await Profile.findOneAndUpdate(
+                { accountId: sacCodeEntry.owneraccountId }, 
+                { $inc: { 'profiles.common_core.items.Currency:MtxPurchased.quantity': rewardAmount } }
+            );
     
-                if (!profile) {
-                    log.debug(`PurchaseCatalogEntry: Failed to find account for SAC owner with accountId: ${sacCodeEntry.owneraccountId}`);
-                } else {
-                    log.debug(`PurchaseCatalogEntry: Added ${rewardAmount} V-Bucks to the SAC owner with accountId: ${sacCodeEntry.owneraccountId}`);
-                }
+            if (!profile) {
+                log.debug(`PurchaseCatalogEntry: Failed to find account for SAC owner with accountId: ${sacCodeEntry.owneraccountId}`);
+            } else {
+                log.debug(`PurchaseCatalogEntry: Added ${rewardAmount} V-Bucks to the SAC owner with accountId: ${sacCodeEntry.owneraccountId}`);
+            }
             } else {
                 log.debug(`PurchaseCatalogEntry: SAC code ${user.currentSACCode} is not valid.`);
             }
         } else {
             log.debug(`PurchaseCatalogEntry: User with accountId: ${req.user.accountId} is not supporting any creator. No V-Bucks awarded.`);
-        }
-    }    
+        }  
 
     res.json({
         profileRevision: profile.rvn || 0,
@@ -2615,6 +2610,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/PurchaseCatalogEntry", verifyTo
             } 
         });
     }
+}
 
     return;
 });

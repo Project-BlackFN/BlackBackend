@@ -1,11 +1,10 @@
 {
   "discord": {
     "bUseDiscordBot": true,
-    "bot_token": "TOKEN",
-    "bEnableInGamePlayerCount": false
+    "bot_token": "MTQwNDg2ODIzNzEwMzIwMjMzNA.GMluxv.E4waVhexehi6a4oTweDUVzxaXlsrGdJMgDmw2Q"
   },
   "mongodb": {
-    "database": "mongodb://127.0.0.1/Reload"
+    "database": "mongodb://127.0.0.1/BlackFNBackend"
   },
 
     "SERVER_AUTH_KEY=": "YOUR-SECRET",
@@ -13,27 +12,14 @@
     "port": 3551, 
 
     "matchmakerIP": "127.0.0.1:80",
-    
-    "bEnableBattlepass": true,
-    "bBattlePassSeason": 4,
 
-    "bEnableOnlyOneVersionJoinable": true,
+    "bSeason": 4,
+
     "bVersionJoinable": 4.5,
 
-    "bUseAutoRotate": false,
-    "bChapterlimit": "1",
-    "bSeasonlimit": "4",
-    "bRotateTime": "00:00",
-    "bDailyItemsAmount": 6,
-    "bFeaturedItemsAmount": 2,
-
-    "bEnableReports": false,
     "bReportChannelId": "your-discord-channel-id-here",
 
     "bCompletedSeasonalQuests": false,
-
-    "bEnableSACRewards": false,
-    "bPercentageSACRewards": 0,
 
     "bEnableCalderaService": false,
     "bGameVersion": "27.11",
