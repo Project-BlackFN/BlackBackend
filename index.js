@@ -96,7 +96,6 @@ mongoose.connection.on("error", err => {
     throw err;
 });
 
-app.use(rateLimit({ windowMs: 0.5 * 60 * 1000, max: 55 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -263,7 +262,6 @@ app.use((req, res, next) => {
     const url = req.originalUrl;
     log.debug(`Missing endpoint: ${req.method} ${url} request port ${req.socket.localPort}`);
     if (req.url.includes("..")) {
-        res.redirect("https://youtu.be/dQw4w9WgXcQ");
         return;
     }
     error.createError(

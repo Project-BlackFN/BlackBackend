@@ -69,11 +69,11 @@ wss.on('listening', () => {
     
 });
 
-wss.on('connection', async (ws) => {
+wss.on('connection', async (ws, req) => {
     ws.on('error', () => {});
 
     // Start matchmaker if it's not connecting for xmpp.
-    if (ws.protocol.toLowerCase() != "xmpp") return matchmaker(ws);
+    if (ws.protocol.toLowerCase() != "xmpp") return matchmaker.server(ws, req);
 
     let joinedMUCs = [];
     let accountId = "";

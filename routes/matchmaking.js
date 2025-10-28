@@ -1,70 +1,180 @@
+const GameServers = require("../model/gameServers.js");
+const axios = require("axios");
 const express = require("express");
 const app = express.Router();
-const config = require("../Config/config.json");
 const functions = require("../structs/functions.js");
-const log = require("../structs/log.js");
 const MMCode = require("../model/mmcodes.js");
 const { verifyToken } = require("../tokenManager/tokenVerify.js");
 const qs = require("qs");
 const error = require("../structs/error.js");
+const log = require("../structs/log.js");
+const config = require("../Config/config.json");
 
 let buildUniqueId = {};
 
-app.get("/fortnite/api/matchmaking/session/findPlayer/*", (req, res) => {
-    log.debug("GET /fortnite/api/matchmaking/session/findPlayer/* called");
-    res.status(200);
-    res.end();
-});
+const PLAYLIST_MAP = {
+    "2": "/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo",
+    "10": "/Game/Athena/Playlists/Playlist_DefaultDuo.Playlist_DefaultDuo",
+    "9": "/Game/Athena/Playlists/Playlist_DefaultSquad.Playlist_DefaultSquad",
+    "playlist_defaultsolo": "/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo",
+    "playlist_defaultduo": "/Game/Athena/Playlists/Playlist_DefaultDuo.Playlist_DefaultDuo",
+    "playlist_defaultsquad": "/Game/Athena/Playlists/Playlist_DefaultSquad.Playlist_DefaultSquad",
+    "playlist_solidgold_solo": "/Game/Athena/Playlists/Playlist_SolidGold_Solo.Playlist_SolidGold_Solo",
+    "playlist_snipers_solo": "/Game/Athena/Playlists/Playlist_Snipers_Solo.Playlist_Snipers_Solo"
+};
+
+function resolvePlaylist(playlist) {
+    return PLAYLIST_MAP[playlist] || playlist;
+}
+
+async function addSearchingPlayer(playlist) {
+    playlist = resolvePlaylist(playlist);
+    try {
+        const currentData = await global.kv.get("matchmaking:searching");
+        let data = currentData ? JSON.parse(currentData) : { total: 0, playlists: {} };
+        data.total = (data.total || 0) + 1;
+        data.playlists[playlist] = (data.playlists[playlist] || 0) + 1;
+        await global.kv.set("matchmaking:searching", JSON.stringify(data));
+    } catch (error) {
+        console.error("Error adding searching player:", error);
+    }
+}
+
+async function removeSearchingPlayer(playlist) {
+    playlist = resolvePlaylist(playlist);
+    try {
+        const currentData = await global.kv.get("matchmaking:searching");
+        if (!currentData) return;
+        let data = JSON.parse(currentData);
+        data.total = Math.max(0, (data.total || 0) - 1);
+        data.playlists[playlist] = Math.max(0, (data.playlists[playlist] || 0) - 1);
+        if (data.playlists[playlist] === 0) delete data.playlists[playlist];
+        await global.kv.set("matchmaking:searching", JSON.stringify(data));
+    } catch (error) {
+        console.error("Error removing searching player:", error);
+    }
+}
+
+async function findAvailableServer(playlist) {
+    playlist = resolvePlaylist(playlist);
+    try {
+        const allServers = await GameServers.find({ playlist: playlist });
+        const now = Date.now();
+        const fiveMinAgo = new Date(now - 5 * 60 * 1000);
+        const tenMinAgo = new Date(now - 10 * 60 * 1000);
+
+        const availableServers = allServers.filter(server => 
+            server.status === 'online' &&
+            server.joinable &&
+            server.lastHeartbeat && server.lastHeartbeat >= fiveMinAgo &&
+            server.lastJoinabilityUpdate && server.lastJoinabilityUpdate >= tenMinAgo
+        );
+
+        if (!availableServers.length) return null;
+        return availableServers[Math.floor(Math.random() * availableServers.length)];
+    } catch {
+        return null;
+    }
+}
+
+app.get("/fortnite/api/matchmaking/session/findPlayer/*", (req, res) => res.status(200).end());
 
 app.get("/fortnite/api/game/v2/matchmakingservice/ticket/player/*", verifyToken, async (req, res) => {
-    log.debug("GET /fortnite/api/game/v2/matchmakingservice/ticket/player/* called");
-    if (req.user.isServer == true) return res.status(403).end();
-    if (req.user.matchmakingId == null) return res.status(400).end();
+    const query = qs.parse(req.url.split("?")[1], { ignoreQueryPrefix: true });
+    const playerCustomKey = query['player.option.customKey'];
+    const decodedBucketId = decodeURIComponent(query['bucketId']);
 
-    const playerCustomKey = qs.parse(req.url.split("?")[1], { ignoreQueryPrefix: true })['player.option.customKey'];
-    const bucketId = qs.parse(req.url.split("?")[1], { ignoreQueryPrefix: true })['bucketId'];
-    if (typeof bucketId !== "string" || bucketId.split(":").length !== 4) {
+    if (typeof decodedBucketId !== "string" || decodedBucketId.split(":").length !== 4) {
+        log.log("[Debug] Invalid bucketId format:", decodedBucketId);
         return res.status(400).end();
     }
-    const rawPlaylist = bucketId.split(":")[3];
-    let playlist = functions.PlaylistNames(rawPlaylist).toLowerCase();
 
-    const gameServers = config.gameServerIP;
-    let selectedServer = gameServers.find(server => server.split(":")[2].toLowerCase() === playlist);
-    if (!selectedServer) {
-        log.debug("No server found for playlist", playlist);
-        return error.createError("errors.com.epicgames.common.matchmaking.playlist.not_found", `No server found for playlist ${playlist}`, [], 1013, "invalid_playlist", 404, res);
+    const rawPlaylist = decodedBucketId.split(":")[3];
+    const playlist = resolvePlaylist(rawPlaylist);
+    if (!playlist || playlist.trim() === '') {
+        return error.createError(
+            "errors.com.epicgames.common.matchmaking.playlist.not_found",
+            `Invalid playlist ID: ${playlist}`,
+            [], 1013, "invalid_playlist", 404, res
+        );
     }
+
     await global.kv.set(`playerPlaylist:${req.user.accountId}`, playlist);
-    if (typeof playerCustomKey == "string") {
-        let codeDocument = await MMCode.findOne({ code_lower: playerCustomKey?.toLowerCase() });
+    await global.kv.set(`playerMatchmaking:${req.user.accountId}`, JSON.stringify({
+        status: 'searching',
+        playlist: playlist,
+        startedAt: Date.now()
+    }));
+
+    if (typeof playerCustomKey === "string") {
+        let codeDocument = await MMCode.findOne({ code_lower: playerCustomKey.toLowerCase() });
         if (!codeDocument) {
-            return error.createError("errors.com.epicgames.common.matchmaking.code.not_found", `The matchmaking code "${playerCustomKey}" was not found`, [], 1013, "invalid_code", 404, res);
+            return error.createError(
+                "errors.com.epicgames.common.matchmaking.code.not_found",
+                `The matchmaking code "${playerCustomKey}" was not found`,
+                [], 1013, "invalid_code", 404, res
+            );
         }
+
         const kvDocument = JSON.stringify({
             ip: codeDocument.ip,
             port: codeDocument.port,
             playlist: playlist,
         });
+
         await global.kv.set(`playerCustomKey:${req.user.accountId}`, kvDocument);
-    }
-    if (typeof req.query.bucketId !== "string" || req.query.bucketId.split(":").length !== 4) {
-        return res.status(400).end();
+        await global.kv.set(`playerMatchmaking:${req.user.accountId}`, JSON.stringify({
+            status: 'found',
+            playlist: playlist,
+            server: kvDocument
+        }));
     }
 
-    buildUniqueId[req.user.accountId] = req.query.bucketId.split(":")[0];
+    buildUniqueId[req.user.accountId] = decodedBucketId.split(":")[0];
 
     const matchmakerIP = config.matchmakerIP;
+
+
+    let cleanMatchmakerIP = String(matchmakerIP).trim().replace(/\/+$/, '');
+    let wsUrl = cleanMatchmakerIP.startsWith('ws://') || cleanMatchmakerIP.startsWith('wss://')
+        ? cleanMatchmakerIP
+        : `ws://${cleanMatchmakerIP}`;
+
+    const sessionToken = functions.MakeID();
+    await global.kv.set(`matchmakingSession:${sessionToken}`, JSON.stringify({
+        accountId: req.user.accountId,
+        playlist: playlist,
+        timestamp: Date.now()
+    }));
+
+    const queryParams = new URLSearchParams({
+        session: sessionToken,
+        playlistId: playlist,
+        region: 'EU',
+        accountId: req.user.accountId,
+        matchmakingId: req.user.matchmakingId
+    });
+
+    wsUrl += `?${queryParams.toString()}`;
+
+    try {
+        const urlTest = new URL(wsUrl);
+        if (!urlTest.searchParams.get('playlistId')) throw new Error('PlaylistId missing from URL');
+    } catch (urlError) {
+        console.error("[Error] Invalid WebSocket URL generated:", wsUrl, urlError);
+        return res.status(500).json({ error: "Invalid matchmaker URL configuration" });
+    }
+
     return res.json({
-        "serviceUrl": matchmakerIP.includes("ws") || matchmakerIP.includes("wss") ? matchmakerIP : `ws://${matchmakerIP}`,
+        "serviceUrl": wsUrl,
         "ticketType": "mms-player",
-        "payload": `${req.user.matchmakingId}`,
-        "signature": "account"
+        "payload": "account",
+        "signature": `${req.user.matchmakingId} ${playlist}`,
+        "playlistId": playlist
     });
 });
 
 app.get("/fortnite/api/game/v2/matchmaking/account/:accountId/session/:sessionId", (req, res) => {
-    log.debug(`GET /fortnite/api/game/v2/matchmaking/account/${req.params.accountId}/session/${req.params.sessionId} called`);
     res.json({
         "accountId": req.params.accountId,
         "sessionId": req.params.sessionId,
@@ -73,49 +183,49 @@ app.get("/fortnite/api/game/v2/matchmaking/account/:accountId/session/:sessionId
 });
 
 app.get("/fortnite/api/matchmaking/session/:sessionId", verifyToken, async (req, res) => {
-    log.debug(`GET /fortnite/api/matchmaking/session/${req.params.sessionId} called`);
-    const playlist = await global.kv.get(`playerPlaylist:${req.user.accountId}`);
-    let kvDocument = await global.kv.get(`playerCustomKey:${req.user.accountId}`);
+    const playlist = resolvePlaylist(await global.kv.get(`playerPlaylist:${req.user.accountId}`));
+    let kvDocument = await global.kv.get(`playerCustomKey:${req.user.accountId}`) || await global.kv.get(`playerServer:${req.user.accountId}`);
+    
     if (!kvDocument) {
-        const gameServers = config.gameServerIP;
-        let selectedServer = gameServers.find(server => server.split(":")[2] === playlist);
-        if (!selectedServer) {
-            log.debug("No server found for playlist", playlist);
-            return error.createError("errors.com.epicgames.common.matchmaking.playlist.not_found", `No server found for playlist ${playlist}`, [], 1013, "invalid_playlist", 404, res);
-        }
-        kvDocument = JSON.stringify({
-            ip: selectedServer.split(":")[0],
-            port: selectedServer.split(":")[1],
-            playlist: selectedServer.split(":")[2]
+        const dynamicServer = await findAvailableServer(playlist);
+        if (dynamicServer) kvDocument = JSON.stringify({
+            ip: dynamicServer.ip,
+            port: dynamicServer.port,
+            playlist: dynamicServer.playlist
         });
+        else return error.createError(
+            "errors.com.epicgames.common.matchmaking.no.dynamic.server.found",
+            `No dynamic server found for playlist ${playlist}`,
+            [], 1013, "invalid_playlist", 404, res
+        );
     }
-    let codeKV = JSON.parse(kvDocument);
 
+    let codeKV = JSON.parse(kvDocument);
     res.json({
         "id": req.params.sessionId,
         "ownerId": functions.MakeID().replace(/-/ig, "").toUpperCase(),
         "ownerName": "[DS]fortnite-liveeugcec1c2e30ubrcore0a-z8hj-1968",
         "serverName": "[DS]fortnite-liveeugcec1c2e30ubrcore0a-z8hj-1968",
         "serverAddress": codeKV.ip,
-        "serverPort": codeKV.port,
+        "serverPort": parseInt(codeKV.port),
         "maxPublicPlayers": 220,
         "openPublicPlayers": 175,
         "maxPrivatePlayers": 0,
         "openPrivatePlayers": 0,
         "attributes": {
-          "REGION_s": "EU",
-          "GAMEMODE_s": "FORTATHENA",
-          "ALLOWBROADCASTING_b": true,
-          "SUBREGION_s": "GB",
-          "DCID_s": "FORTNITE-LIVEEUGCEC1C2E30UBRCORE0A-14840880",
-          "tenant_s": "Fortnite",
-          "MATCHMAKINGPOOL_s": "Any",
-          "STORMSHIELDDEFENSETYPE_i": 0,
-          "HOTFIXVERSION_i": 0,
-          "PLAYLISTNAME_s": codeKV.playlist,
-          "SESSIONKEY_s": functions.MakeID().replace(/-/ig, "").toUpperCase(),
-          "TENANT_s": "Fortnite",
-          "BEACONPORT_i": 15009
+            "REGION_s": "EU",
+            "GAMEMODE_s": "FORTATHENA",
+            "ALLOWBROADCASTING_b": true,
+            "SUBREGION_s": "GB",
+            "DCID_s": "FORTNITE-LIVEEUGCEC1C2E30UBRCORE0A-14840880",
+            "tenant_s": "Fortnite",
+            "MATCHMAKINGPOOL_s": "Any",
+            "STORMSHIELDDEFENSETYPE_i": 0,
+            "HOTFIXVERSION_i": 0,
+            "PLAYLISTNAME_s": codeKV.playlist,
+            "SESSIONKEY_s": functions.MakeID().replace(/-/ig, "").toUpperCase(),
+            "TENANT_s": "Fortnite",
+            "BEACONPORT_i": 15009
         },
         "publicPlayers": [],
         "privatePlayers": [],
@@ -131,18 +241,20 @@ app.get("/fortnite/api/matchmaking/session/:sessionId", verifyToken, async (req,
         "buildUniqueId": buildUniqueId[req.user.accountId] || "0",
         "lastUpdated": new Date().toISOString(),
         "started": false
-      });
+    });
 });
 
-app.post("/fortnite/api/matchmaking/session/*/join", (req, res) => {
-    log.debug("POST /fortnite/api/matchmaking/session/*/join called");
-    res.status(204);
-    res.end();
-});
+app.post("/fortnite/api/matchmaking/session/*/join", (req, res) => res.status(204).end());
+app.post("/fortnite/api/matchmaking/session/matchMakingRequest", (req, res) => res.json([]));
 
-app.post("/fortnite/api/matchmaking/session/matchMakingRequest", (req, res) => {
-    log.debug("POST /fortnite/api/matchmaking/session/matchMakingRequest called");
-    res.json([]);
-});
+setInterval(async () => {
+    try {
+        const cutoffTime = new Date(Date.now() - 10 * 60 * 1000);
+        await GameServers.updateMany(
+            { lastHeartbeat: { $lt: cutoffTime }, status: 'online' },
+            { status: 'offline' }
+        );
+    } catch {}
+}, 5 * 60 * 1000);
 
 module.exports = app;

@@ -1,7 +1,6 @@
 const Redis = require('ioredis');
 const Keyv = require('keyv');
 
-//Don't touch "Use_Redis"
 const Use_Redis = false;
 const memkv = new Keyv();
 const redis = Use_Redis ? new Redis() : null;
@@ -32,6 +31,16 @@ class KV {
         } else {
             const set = await memkv.set(key, value, ttl);
             return set;
+        }
+    }
+
+    async delete(key) {
+        if (Use_Redis && redis) {
+            const deleted = await redis.del(key);
+            return deleted > 0;
+        } else {
+            const deleted = await memkv.delete(key);
+            return deleted;
         }
     }
 }
