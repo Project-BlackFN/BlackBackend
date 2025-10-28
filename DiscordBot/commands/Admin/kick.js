@@ -1,7 +1,5 @@
 const User = require("../../../model/user.js");
 const functions = require("../../../structs/functions.js");
-const fs = require("fs");
-const config = JSON.parse(fs.readFileSync("./Config/config.json").toString());
 
 module.exports = {
     commandInfo: {
@@ -19,12 +17,11 @@ module.exports = {
     execute: async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
         
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.editReply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.editReply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
     
-        const { options } = interaction;
-        const targetUser = await User.findOne({ username_lower: (options.get("username").value).toLowerCase() });
+        const targetUser = await User.findOne({ username_lower: (interaction.options.get("username").value).toLowerCase() });
     
         if (!targetUser) return interaction.editReply({ content: "The account username you entered does not exist.", ephemeral: true });
 
@@ -41,10 +38,9 @@ module.exports = {
 
         if (accessToken != -1 || refreshToken != -1) {
             functions.UpdateTokens();
-            
             return interaction.editReply({ content: `Successfully kicked ${targetUser.username}`, ephemeral: true });
         }
         
         interaction.editReply({ content: `There are no current active sessions by ${targetUser.username}`, ephemeral: true });
     }
-}
+};

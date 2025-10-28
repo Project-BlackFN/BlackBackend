@@ -5,7 +5,6 @@ const Users = require('../../../model/user.js');
 const Profiles = require('../../../model/profiles.js');
 const log = require("../../../structs/log.js");
 const destr = require("destr");
-const config = require('../../../Config/config.json')
 
 module.exports = {
     commandInfo: {
@@ -21,15 +20,16 @@ module.exports = {
         ]
     },
     execute: async (interaction) => {
-        
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.reply({ content: "You do not have moderator permissions.", ephemeral: true });
+        // Prüfen, ob der Benutzer Administratorrechte hat
+        if (!interaction.member.permissions.has("ADMINISTRATOR")) {
+            return interaction.reply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
 
         const selectedUser = interaction.options.getUser('user');
         const selectedUserId = selectedUser?.id;
+
         try {
             const targetUser = await Users.findOne({ discordId: selectedUserId });
             if (!targetUser) {
@@ -46,11 +46,12 @@ module.exports = {
                 return interaction.editReply({ content: "Failed to parse allathena.json" });
             }
 
-            Profiles.findOneAndUpdate({ accountId: targetUser.accountId }, { $set: { "profiles.athena.items": allItems.items } }, { new: true }, (err, doc) => {
-                if (err) {
-                    return interaction.editReply({ content: "There was an error updating the profile." });
-                }
-            });
+            // Profile aktualisieren
+            await Profiles.findOneAndUpdate(
+                { accountId: targetUser.accountId },
+                { $set: { "profiles.athena.items": allItems.items } },
+                { new: true }
+            );
 
             const embed = new MessageEmbed()
                 .setTitle("Full Locker Added")
@@ -61,10 +62,11 @@ module.exports = {
                     iconURL: "https://i.imgur.com/2RImwlb.png"
                 })
                 .setTimestamp();
+
             await interaction.editReply({ embeds: [embed], ephemeral: true });
         } catch (error) {
             log.error("An error occurred:", error);
-            interaction.editReply({ content: "An error occurred while processing the request." });
+            await interaction.editReply({ content: "An error occurred while processing the request." });
         }
     }
 };

@@ -6,7 +6,6 @@ const Profiles = require('../../../model/profiles.js');
 const SACCodes = require('../../../model/saccodes.js');
 const Friends = require('../../../model/friends.js');
 const log = require("../../../structs/log.js");
-const config = require('../../../Config/config.json');
 
 module.exports = {
     commandInfo: {
@@ -24,8 +23,8 @@ module.exports = {
     execute: async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
 
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.editReply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.editReply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
 
         const username = interaction.options.getString('username');
@@ -39,29 +38,10 @@ module.exports = {
         const accountId = deleteAccount.accountId;
         let somethingDeleted = false;
 
-        await Users.deleteOne({ username: username }).then(() => {
-            somethingDeleted = true;
-        }).catch(error => {
-            log.error('Error deleting from Users:', error);
-        });
-
-        await Profiles.deleteOne({ accountId: accountId }).then(() => {
-            somethingDeleted = true;
-        }).catch(error => {
-            log.error('Error deleting from Profiles:', error);
-        });
-
-        await Friends.deleteOne({ accountId: accountId }).then(() => {
-            somethingDeleted = true;
-        }).catch(error => {
-            log.error('Error deleting from Friends:', error);
-        });
-
-        await SACCodes.deleteOne({ owneraccountId: accountId }).then(() => {
-            somethingDeleted = true;
-        }).catch(error => {
-            log.error('Error deleting from SACCodes:', error);
-        });
+        await Users.deleteOne({ username: username }).then(() => { somethingDeleted = true; }).catch(error => log.error('Error deleting from Users:', error));
+        await Profiles.deleteOne({ accountId: accountId }).then(() => { somethingDeleted = true; }).catch(error => log.error('Error deleting from Profiles:', error));
+        await Friends.deleteOne({ accountId: accountId }).then(() => { somethingDeleted = true; }).catch(error => log.error('Error deleting from Friends:', error));
+        await SACCodes.deleteOne({ owneraccountId: accountId }).then(() => { somethingDeleted = true; }).catch(error => log.error('Error deleting from SACCodes:', error));
 
         const clientSettingsPath = path.join(__dirname, '../../../ClientSettings', accountId);
         if (fs.existsSync(clientSettingsPath)) {

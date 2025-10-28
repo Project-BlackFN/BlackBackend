@@ -3,7 +3,6 @@ const Profiles = require('../../../model/profiles.js');
 const fs = require('fs');
 const path = require('path');
 const destr = require('destr');
-const config = require('../../../Config/config.json');
 const uuid = require("uuid");
 const log = require("../../../structs/log.js");
 const { MessageEmbed } = require('discord.js');
@@ -28,11 +27,12 @@ module.exports = {
         ]
     },
     execute: async (interaction) => {
-        await interaction.deferReply({ ephemeral: true });
-
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.editReply({ content: "You do not have moderator permissions.", ephemeral: true });
+        // Prüfen, ob der Benutzer Administratorrechte hat
+        if (!interaction.member.permissions.has("ADMINISTRATOR")) {
+            return interaction.reply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
+
+        await interaction.deferReply({ ephemeral: true });
 
         const selectedUser = interaction.options.getUser('user');
         const selectedUserId = selectedUser.id;
@@ -51,118 +51,119 @@ module.exports = {
         const cosmeticname = interaction.options.getString('cosmeticname');
 
         try {
-            await fetch(`https://fortnite-api.com/v2/cosmetics/br/search?name=${cosmeticname}`)
-                .then(res => res.json())
-                .then(async (json) => {
-                    const cosmeticFromAPI = json.data;
-                    if (!cosmeticFromAPI) {
-                        return await interaction.editReply({ content: "Could not find the cosmetic", ephemeral: true });
+            const res = await fetch(`https://fortnite-api.com/v2/cosmetics/br/search?name=${encodeURIComponent(cosmeticname)}`);
+            const json = await res.json();
+            const cosmeticFromAPI = json.data;
+
+            if (!cosmeticFromAPI) {
+                return await interaction.editReply({ content: "Could not find the cosmetic", ephemeral: true });
+            }
+
+            const cosmeticimage = cosmeticFromAPI.images.icon;
+            const regex = /^[A-Za-z0-9'°. \s]+$/;
+            if (!regex.test(cosmeticname)) {
+                return await interaction.editReply({ content: "Please check for correct casing. E.g 'Renegade Raider' is correct.", ephemeral: true });
+            }
+
+            const file = fs.readFileSync(path.join(__dirname, "../../../Config/DefaultProfiles/allathena.json"));
+            const jsonFile = destr(file.toString());
+            const items = jsonFile.items;
+
+            let foundcosmeticname = "";
+            let cosmetic = null;
+            let found = false;
+
+            for (const key of Object.keys(items)) {
+                const [type, id] = key.split(":");
+                if (id === cosmeticFromAPI.id) {
+                    foundcosmeticname = key;
+                    if (profile.profiles.athena.items[key]) {
+                        return await interaction.editReply({ content: "That user already has that cosmetic", ephemeral: true });
                     }
+                    found = true;
+                    cosmetic = items[key];
+                    break;
+                }
+            }
 
-                    const cosmeticimage = cosmeticFromAPI.images.icon;
-                    const regex = /^[A-Za-z0-9'°. \s]+$/;
-                    if (!regex.test(cosmeticname)) {
-                        return await interaction.editReply({ content: "Please check for correct casing. E.g 'Renegade Raider' is correct.", ephemeral: true });
-                    }
+            if (!found) {
+                return await interaction.editReply({ content: `Could not find the cosmetic ${cosmeticname}`, ephemeral: true });
+            }
 
-                    let cosmetic = {};
-                    const file = fs.readFileSync(path.join(__dirname, "../../../Config/DefaultProfiles/allathena.json"));
-                    const jsonFile = destr(file.toString());
-                    const items = jsonFile.items;
-                    let foundcosmeticname = "";
-                    let found = false;
+            const purchaseId = uuid.v4();
+            const lootList = [{
+                "itemType": cosmetic.templateId,
+                "itemGuid": cosmetic.templateId,
+                "quantity": 1
+            }];
 
-                    for (const key of Object.keys(items)) {
-                        const [type, id] = key.split(":");
-                        if (id === cosmeticFromAPI.id) {
-                            foundcosmeticname = key;
-                            if (profile.profiles.athena.items[key]) {
-                                return await interaction.editReply({ content: "That user already has that cosmetic", ephemeral: true });
-                            }
-                            found = true;
-                            cosmetic = items[key];
-                            break;
-                        }
-                    }
+            const common_core = profile.profiles["common_core"];
+            const athena = profile.profiles["athena"];
 
-                    if (!found) {
-                        return await interaction.editReply({ content: `Could not find the cosmetic ${cosmeticname}`, ephemeral: true });
-                    }
+            common_core.items[purchaseId] = {
+                "templateId": `GiftBox:GB_MakeGood`,
+                "attributes": {
+                    "fromAccountId": `[${interaction.user.username}]`,
+                    "lootList": lootList,
+                    "params": {
+                        "userMessage": `Thanks For Using Reload Backend!`
+                    },
+                    "giftedOn": new Date().toISOString()
+                },
+                "quantity": 1
+            };
 
-                    const purchaseId = uuid.v4();
-                    const lootList = [{
-                        "itemType": cosmetic.templateId,
-                        "itemGuid": cosmetic.templateId,
-                        "quantity": 1
-                    }];
+            athena.items[foundcosmeticname] = cosmetic;
 
-                    const common_core = profile.profiles["common_core"];
-                    const athena = profile.profiles["athena"];
+            let ApplyProfileChanges = [
+                {
+                    "changeType": "itemAdded",
+                    "itemId": foundcosmeticname,
+                    "templateId": cosmetic.templateId
+                },
+                {
+                    "changeType": "itemAdded",
+                    "itemId": purchaseId,
+                    "templateId": "GiftBox:GB_MakeGood"
+                }
+            ];
 
-                    common_core.items[purchaseId] = {
-                        "templateId": `GiftBox:GB_MakeGood`,
-                        "attributes": {
-                            "fromAccountId": `[${interaction.user.username}]`,
-                            "lootList": lootList,
-                            "params": {
-                                "userMessage": `Thanks For Using Reload Backend!`
-                            },
-                            "giftedOn": new Date().toISOString()
-                        },
-                        "quantity": 1
-                    };
+            common_core.rvn++;
+            common_core.commandRevision++;
+            common_core.updated = new Date().toISOString();
+            athena.rvn++;
+            athena.commandRevision++;
+            athena.updated = new Date().toISOString();
 
-                    athena.items[foundcosmeticname] = cosmetic;
+            await Profiles.updateOne(
+                { accountId: user.accountId },
+                { 
+                    $set: { 
+                        'profiles.common_core': common_core, 
+                        'profiles.athena': athena 
+                    } 
+                }
+            );
 
-                    let ApplyProfileChanges = [
-                        {
-                            "changeType": "itemAdded",
-                            "itemId": foundcosmeticname,
-                            "templateId": cosmetic.templateId
-                        },
-                        {
-                            "changeType": "itemAdded",
-                            "itemId": purchaseId,
-                            "templateId": "GiftBox:GB_MakeGood"
-                        }
-                    ];
+            const embed = new MessageEmbed()
+                .setTitle("Cosmetic Gift Sent")
+                .setDescription(`Successfully gave the user the cosmetic **${cosmeticname}** with a GiftBox`)
+                .setThumbnail(cosmeticimage)
+                .setColor("GREEN")
+                .setFooter({
+                    text: "Reload Backend",
+                    iconURL: "https://i.imgur.com/2RImwlb.png"
+                })
+                .setTimestamp();
 
-                    common_core.rvn++;
-                    common_core.commandRevision++;
-                    common_core.updated = new Date().toISOString();
-                    athena.rvn++;
-                    athena.commandRevision++;
-                    athena.updated = new Date().toISOString();
+            await interaction.editReply({ embeds: [embed], ephemeral: true });
 
-                    await Profiles.updateOne(
-                        { accountId: user.accountId },
-                        { 
-                            $set: { 
-                                'profiles.common_core': common_core, 
-                                'profiles.athena': athena 
-                            } 
-                        }
-                    );
+            return {
+                profileRevision: common_core.rvn,
+                profileCommandRevision: common_core.commandRevision,
+                profileChanges: ApplyProfileChanges
+            };
 
-                    const embed = new MessageEmbed()
-                        .setTitle("Cosmetic Gift Sent")
-                        .setDescription(`Successfully gave the user the cosmetic **${cosmeticname}** with a GiftBox`)
-                        .setThumbnail(cosmeticimage)
-                        .setColor("GREEN")
-                        .setFooter({
-                            text: "Reload Backend",
-                            iconURL: "https://i.imgur.com/2RImwlb.png"
-                        })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed], ephemeral: true });
-
-                    return {
-                        profileRevision: common_core.rvn,
-                        profileCommandRevision: common_core.commandRevision,
-                        profileChanges: ApplyProfileChanges
-                    };
-                });
         } catch (err) {
             log.error(err);
             await interaction.editReply({ content: "An unexpected error occurred", ephemeral: true });

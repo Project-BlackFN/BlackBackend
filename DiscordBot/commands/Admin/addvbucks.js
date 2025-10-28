@@ -1,6 +1,5 @@
 const Users = require('../../../model/user');
 const Profiles = require('../../../model/profiles');
-const config = require('../../../Config/config.json');
 const uuid = require("uuid");
 const { MessageEmbed } = require("discord.js");
 
@@ -26,8 +25,8 @@ module.exports = {
     execute: async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
 
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.editReply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.editReply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
 
         const selectedUser = interaction.options.getUser('user');
@@ -59,7 +58,7 @@ module.exports = {
         const profile0 = updatedProfile.profiles["profile0"];
 
         const newQuantityCommonCore = common_core.items['Currency:MtxPurchased'].quantity;
-        const newQuantityProfile0 = profile0.items['Currency:MtxPurchased'].quantity + vbucks;
+        const newQuantityProfile0 = profile0.items['Currency:MtxPurchased'].quantity;
 
         if (newQuantityCommonCore < 0 || newQuantityCommonCore >= 1000000) {
             return interaction.editReply({
@@ -88,24 +87,6 @@ module.exports = {
             "quantity": 1
         };
 
-        let ApplyProfileChanges = [
-            {
-                "changeType": "itemQuantityChanged",
-                "itemId": "Currency:MtxPurchased",
-                "quantity": newQuantityCommonCore
-            },
-            { // for s1, s2 and s3
-                "changeType": "itemQuantityChanged",
-                "itemId": "Currency:MtxPurchased",
-                "quantity": newQuantityProfile0
-            },
-            {
-                "changeType": "itemAdded",
-                "itemId": purchaseId,
-                "templateId": "GiftBox:GB_MakeGood"
-            }
-        ];
-
         common_core.rvn += 1;
         common_core.commandRevision += 1;
         common_core.updated = new Date().toISOString();
@@ -133,7 +114,6 @@ module.exports = {
         return {
             profileRevision: common_core.rvn,
             profileCommandRevision: common_core.commandRevision,
-            profileChanges: ApplyProfileChanges,
             newQuantityCommonCore,
             newQuantityProfile0
         };

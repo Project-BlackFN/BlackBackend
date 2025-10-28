@@ -19,8 +19,8 @@ module.exports = {
     execute: async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
         
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.editReply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.editReply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
     
         const { options } = interaction;
@@ -46,4 +46,4 @@ module.exports = {
 
         interaction.editReply({ content: `Successfully banned **${targetUser.username}**`, ephemeral: true });
     }
-}
+};

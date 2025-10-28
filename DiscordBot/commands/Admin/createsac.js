@@ -1,5 +1,4 @@
 const functions = require("../../../structs/functions.js");
-const config = require("../../../Config/config.json");
 
 module.exports = {
     commandInfo: {
@@ -23,8 +22,8 @@ module.exports = {
     execute: async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
 
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.editReply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.editReply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
 
         const { options } = interaction;
@@ -32,13 +31,12 @@ module.exports = {
         const code = options.get("code").value;
         const username = options.get("ingame-username").value;
         const creator = interaction.user.id;
-        await functions.createSAC(code, username, creator).then(resp => {
 
-            if (resp.message == undefined) return interaction.editReply({ content: "There was an unknown error!", ephemeral: true})
+        const resp = await functions.createSAC(code, username, creator);
 
-            if (resp.status >= 400) return interaction.editReply({ content: resp.message, ephemeral: true });
+        if (!resp.message) return interaction.editReply({ content: "There was an unknown error!", ephemeral: true });
+        if (resp.status >= 400) return interaction.editReply({ content: resp.message, ephemeral: true });
 
-            interaction.editReply({ content: resp.message, ephemeral: true });
-        });
+        interaction.editReply({ content: resp.message, ephemeral: true });
     }
-}
+};

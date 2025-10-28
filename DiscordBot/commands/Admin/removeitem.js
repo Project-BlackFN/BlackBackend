@@ -5,7 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const destr = require('destr');
 const log = require("../../../structs/log.js");
-const config = require('../../../Config/config.json');
 
 module.exports = {
     commandInfo: {
@@ -28,8 +27,8 @@ module.exports = {
     },
     execute: async (interaction) => {
 
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.reply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.reply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
@@ -38,14 +37,10 @@ module.exports = {
         const selectedUserId = selectedUser?.id;
 
         const user = await Users.findOne({ discordId: selectedUserId });
-        if (!user) {
-            return interaction.editReply({ content: "That user does not own an account" });
-        }
+        if (!user) return interaction.editReply({ content: "That user does not own an account" });
 
         const profile = await Profiles.findOne({ accountId: user.accountId });
-        if (!profile) {
-            return interaction.editReply({ content: "That user does not own an account" });
-        }
+        if (!profile) return interaction.editReply({ content: "That user does not own an account" });
 
         const cosmeticname = interaction.options.getString('cosmeticname');
 
@@ -54,16 +49,11 @@ module.exports = {
             const json = await response.json();
             const cosmeticFromAPI = json.data;
 
-            if (!cosmeticFromAPI) {
-                return interaction.editReply({ content: "Could not find the cosmetic" });
-            }
+            if (!cosmeticFromAPI) return interaction.editReply({ content: "Could not find the cosmetic" });
 
             const cosmeticimage = cosmeticFromAPI.images.icon;
-
             const regex = /^(?:[A-Z][a-z]*\b\s*)+$/;
-            if (!regex.test(cosmeticname)) {
-                return interaction.editReply({ content: "Please check for correct casing. E.g 'renegade raider' is wrong, but 'Renegade Raider' is correct." });
-            }
+            if (!regex.test(cosmeticname)) return interaction.editReply({ content: "Please check the casing (e.g., 'Renegade Raider')" });
 
             const file = fs.readFileSync(path.join(__dirname, "../../../Config/DefaultProfiles/allathena.json"));
             const jsonFile = destr(file.toString());
@@ -75,17 +65,13 @@ module.exports = {
                 const [type, id] = key.split(":");
                 if (id === cosmeticFromAPI.id) {
                     foundcosmeticname = key;
-                    if (!profile.profiles.athena.items[key]) {
-                        return interaction.editReply({ content: "That user does not have that cosmetic" });
-                    }
+                    if (!profile.profiles.athena.items[key]) return interaction.editReply({ content: "That user does not have that cosmetic" });
                     found = true;
                     break;
                 }
             }
 
-            if (!found) {
-                return interaction.editReply({ content: `Could not find the cosmetic ${cosmeticname} in user's profile` });
-            }
+            if (!found) return interaction.editReply({ content: `Could not find the cosmetic ${cosmeticname} in user's profile` });
 
             const update = { $unset: {} };
             update.$unset[`profiles.athena.items.${foundcosmeticname}`] = "";
@@ -94,13 +80,11 @@ module.exports = {
                 { accountId: user.accountId },
                 update,
                 { new: true }
-            ).catch(async (err) => {
-                return interaction.editReply({ content: "An error occurred while removing the cosmetic" });
-            });
+            );
 
             const embed = new MessageEmbed()
                 .setTitle("Cosmetic Removed")
-                .setDescription(`Successfully removed for ${selectedUser} the cosmetic **` + cosmeticname + `**`)
+                .setDescription(`Successfully removed for ${selectedUser} the cosmetic **${cosmeticname}**`)
                 .setThumbnail(cosmeticimage)
                 .setColor("GREEN")
                 .setFooter({

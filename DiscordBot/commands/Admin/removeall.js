@@ -5,7 +5,6 @@ const Users = require('../../../model/user.js');
 const Profiles = require('../../../model/profiles.js');
 const log = require("../../../structs/log.js");
 const destr = require("destr");
-const config = require('../../../Config/config.json')
 
 module.exports = {
     commandInfo: {
@@ -14,7 +13,7 @@ module.exports = {
         options: [
             {
                 name: "user",
-                description: "The user you want to give the cosmetic to",
+                description: "The user you want to remove all cosmetics from",
                 required: true,
                 type: 6
             }
@@ -22,39 +21,34 @@ module.exports = {
     },
     execute: async (interaction) => {
 
-        if (!config.moderators.includes(interaction.user.id)) {
-            return interaction.reply({ content: "You do not have moderator permissions.", ephemeral: true });
+        if (!interaction.member?.permissions.has("ADMINISTRATOR")) {
+            return interaction.reply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
 
         const selectedUser = interaction.options.getUser('user');
         const selectedUserId = selectedUser?.id;
+
         try {
             const targetUser = await Users.findOne({ discordId: selectedUserId });
-            if (!targetUser) {
-                return interaction.editReply({ content: "That user does not own an account" });
-            }
+            if (!targetUser) return interaction.editReply({ content: "That user does not own an account" });
 
             const profile = await Profiles.findOne({ accountId: targetUser.accountId });
-            if (!profile) {
-                return interaction.editReply({ content: "That user does not have a profile" });
-            }
+            if (!profile) return interaction.editReply({ content: "That user does not have a profile" });
 
             const allItems = destr(fs.readFileSync(path.join(__dirname, "../../../Config/DefaultProfiles/athena.json"), 'utf8'));
-            if (!allItems) {
-                return interaction.editReply({ content: "Failed to parse athena.json" });
-            }
+            if (!allItems) return interaction.editReply({ content: "Failed to parse athena.json" });
 
-            Profiles.findOneAndUpdate({ accountId: targetUser.accountId }, { $set: { "profiles.athena.items": allItems.items } }, { new: true }, (err, doc) => {
-                if (err) {
-                    return interaction.editReply({ content: "There was an error updating the profile." });
-                }
-            });
+            await Profiles.findOneAndUpdate(
+                { accountId: targetUser.accountId },
+                { $set: { "profiles.athena.items": allItems.items } },
+                { new: true }
+            );
 
             const embed = new MessageEmbed()
                 .setTitle("Full Locker Removed")
-                .setDescription("Successfully removed all skins to the selected account")
+                .setDescription("Successfully removed all skins from the selected account")
                 .setColor("GREEN")
                 .setFooter({
                     text: "Reload Backend",
