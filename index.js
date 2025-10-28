@@ -95,8 +95,7 @@ if (useHTTPS) {
     server = httpsServer.listen(PORT, () => {
         log.backend(`Backend started listening on port ${PORT} (SSL Enabled)`);
         require("./xmpp/xmpp.js");
-        if (config.discord.bUseDiscordBot) require("./DiscordBot");
-        if (config.bUseAutoRotate) require("./structs/autorotate.js");
+        require("./DiscordBot");
     }).on("error", async (err) => {
         if (err.code === "EADDRINUSE") {
             log.error(`Port ${PORT} is already in use!\nClosing in 3 seconds...`);
@@ -108,8 +107,7 @@ if (useHTTPS) {
     server = app.listen(PORT, () => {
         log.backend(`Backend started listening on port ${PORT} (SSL Disabled)`);
         require("./xmpp/xmpp.js");
-        if (config.discord.bUseDiscordBot) require("./DiscordBot");
-        if (config.bUseAutoRotate) require("./structs/autorotate.js");
+        require("./DiscordBot");
     }).on("error", async (err) => {
         if (err.code === "EADDRINUSE") {
             log.error(`Port ${PORT} is already in use!\nClosing in 3 seconds...`);
