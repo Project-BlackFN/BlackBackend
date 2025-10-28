@@ -11,9 +11,9 @@ const config = JSON.parse(fs.readFileSync("./Config/config.json").toString());
 
 app.post("/fortnite/api/game/v2/chat/*/*/*/pc", (req, res) => {
     log.debug("POST /fortnite/api/game/v2/chat/*/*/*/pc called");
-    let resp = config.chat.EnableGlobalChat ? { "GlobalChatRooms": [{ "roomName": "reloadbackendglobal" }] } : {};
-
-    res.json(resp);
+    
+    // no one needs global chat
+    res.json({});
 });
 
 app.post("/fortnite/api/game/v2/tryPlayOnPlatform/account/*", (req, res) => {
