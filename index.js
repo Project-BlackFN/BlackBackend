@@ -37,7 +37,6 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     httpsServer = https.createServer(httpsOptions, app);
 }
 
-console.log('Welcome to Reload Backend\n');
 
 const tokens = JSON.parse(fs.readFileSync("./tokenManager/tokens.json").toString());
 
@@ -77,12 +76,12 @@ app.use(express.urlencoded({ extended: true }));
 
 fs.readdirSync("./routes").forEach(fileName => {
     try { app.use(require(`./routes/${fileName}`)); } 
-    catch (err) { log.error(`Routes Error: Failed to load ${fileName}`); }
+    catch (err) { log.error(`Load Error: ${fileName}`); }
 });
 
 fs.readdirSync("./BetterReload").forEach(fileName => {
     try { app.use(require(`./BetterReload/${fileName}`)); } 
-    catch (err) { log.error(`BetterReload Error: Failed to load ${fileName}`); }
+    catch (err) { log.error(`Load Error: ${fileName}`); }
 });
 
 app.get("/unknown", (req, res) => {
@@ -92,7 +91,7 @@ app.get("/unknown", (req, res) => {
 let server;
 if (useHTTPS) {
     server = httpsServer.listen(PORT, () => {
-        log.backend(`Backend started listening on port ${PORT}`);
+        log.backend(`Backend started on Port: ${PORT}`);
         require("./xmpp/xmpp.js");
         require("./DiscordBot");
     }).on("error", async (err) => {
@@ -104,7 +103,7 @@ if (useHTTPS) {
     });
 } else {
     server = app.listen(PORT, () => {
-        log.backend(`Backend started listening on port ${PORT} (no SSL)`);
+        log.backend(`Backend started on Port: ${PORT} (no SSL)`);
         require("./xmpp/xmpp.js");
         require("./DiscordBot");
     }).on("error", async (err) => {
