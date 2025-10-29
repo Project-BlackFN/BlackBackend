@@ -57,8 +57,8 @@ module.exports = {
             .setDescription("Your account email has been changed.")
             .setColor("GREEN")
             .setFooter({
-                text: "Reload Backend",
-                iconURL: "https://i.imgur.com/2RImwlb.png",
+                text: "BlackFN",
+                iconURL: "https://assets-launcher.blackfn.ghost143.de/blackfn.png",
             })
             .setTimestamp();
 

@@ -80,7 +80,7 @@ module.exports = {
                 "fromAccountId": `[Administrator]`,
                 "lootList": lootList,
                 "params": {
-                    "userMessage": `Thanks For Using Reload Backend!`
+                    "userMessage": `Thanks for playing BlackFN!`
                 },
                 "giftedOn": new Date().toISOString()
             },

@@ -82,8 +82,8 @@ module.exports = {
             })
             .setTimestamp()
             .setFooter({
-                text: "Reload Backend",
-                iconURL: "https://i.imgur.com/2RImwlb.png"
+                text: "BlackFN",
+                iconURL: "https://assets-launcher.blackfn.ghost143.de/blackfn.png"
             })
 
             if (resp.status >= 400) return interaction.editReply({ embeds: [embed], ephemeral: true });

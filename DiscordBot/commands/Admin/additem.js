@@ -27,7 +27,6 @@ module.exports = {
         ]
     },
     execute: async (interaction) => {
-        // Prüfen, ob der Benutzer Administratorrechte hat
         if (!interaction.member.permissions.has("ADMINISTRATOR")) {
             return interaction.reply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
@@ -106,7 +105,7 @@ module.exports = {
                     "fromAccountId": `[${interaction.user.username}]`,
                     "lootList": lootList,
                     "params": {
-                        "userMessage": `Thanks For Using Reload Backend!`
+                        "userMessage": `Thanks for playing BlackFN!`
                     },
                     "giftedOn": new Date().toISOString()
                 },
