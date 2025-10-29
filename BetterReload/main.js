@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load config
-const configPath = path.join(__dirname, '../config/config.json');
+const configPath = path.join(__dirname, '../Config/config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 const app = express.Router();
