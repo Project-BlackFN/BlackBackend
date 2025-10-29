@@ -72,9 +72,9 @@ module.exports = {
         const embed = new MessageEmbed()
             .setTitle("V-Bucks Updated")
             .setDescription(`Successfully removed **${vbucks}** V-Bucks from <@${selectedUserId}>`)
-            .setThumbnail("https://i.imgur.com/yLbihQa.png")
+            .setThumbnail("https://assets-launcher.blackfn.ghost143.de/blackfn.png")
             .setColor("GREEN")
-            .setFooter({ text: "Reload Backend", iconURL: "https://i.imgur.com/2RImwlb.png" })
+            .setFooter({ text: "BlackFN", iconURL: "https://assets-launcher.blackfn.ghost143.de/blackfn.png" })
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed], ephemeral: true });

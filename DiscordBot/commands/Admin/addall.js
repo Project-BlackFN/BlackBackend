@@ -20,7 +20,6 @@ module.exports = {
         ]
     },
     execute: async (interaction) => {
-        // Prüfen, ob der Benutzer Administratorrechte hat
         if (!interaction.member.permissions.has("ADMINISTRATOR")) {
             return interaction.reply({ content: "You do not have administrator permissions.", ephemeral: true });
         }
@@ -46,7 +45,6 @@ module.exports = {
                 return interaction.editReply({ content: "Failed to parse allathena.json" });
             }
 
-            // Profile aktualisieren
             await Profiles.findOneAndUpdate(
                 { accountId: targetUser.accountId },
                 { $set: { "profiles.athena.items": allItems.items } },
@@ -58,8 +56,8 @@ module.exports = {
                 .setDescription("Successfully added all skins (Full Locker) to the selected account")
                 .setColor("GREEN")
                 .setFooter({
-                    text: "Reload Backend",
-                    iconURL: "https://i.imgur.com/2RImwlb.png"
+                    text: "BlackFN",
+                    iconURL: "https://assets-launcher.blackfn.ghost143.de/blackfn.png"
                 })
                 .setTimestamp();
 

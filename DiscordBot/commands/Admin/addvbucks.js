@@ -101,11 +101,11 @@ module.exports = {
         const embed = new MessageEmbed()
             .setTitle("V-Bucks Updated")
             .setDescription(`Successfully added **${vbucks}** V-Bucks to <@${selectedUserId}> with a GiftBox`)
-            .setThumbnail("https://i.imgur.com/yLbihQa.png")
+            .setThumbnail("https://assets-launcher.blackfn.ghost143.de/blackfn.png")
             .setColor("GREEN")
             .setFooter({
-                text: "Reload Backend",
-                iconURL: "https://i.imgur.com/2RImwlb.png"
+                text: "BlackFN",
+                iconURL: "https://assets-launcher.blackfn.ghost143.de/blackfn.png"
             })
             .setTimestamp();
 
