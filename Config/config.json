@@ -6,7 +6,7 @@
     "database": "mongodb://127.0.0.1/Reload"
   },
 
-    "SERVER_AUTH_KEY=": "YOUR-SECRET",
+    "SERVER_AUTH_KEY": "YOUR-SECRET",
 
     "port": 3551, 
 
