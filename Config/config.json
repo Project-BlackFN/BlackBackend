@@ -1,10 +1,9 @@
 {
   "discord": {
-    "bUseDiscordBot": true,
-    "bot_token": "MTQwNDg2ODIzNzEwMzIwMjMzNA.GMluxv.E4waVhexehi6a4oTweDUVzxaXlsrGdJMgDmw2Q"
+    "bot_token": "BOTTOKEN"
   },
   "mongodb": {
-    "database": "mongodb://127.0.0.1/BlackFNBackend"
+    "database": "mongodb://127.0.0.1/Reload"
   },
 
     "SERVER_AUTH_KEY=": "YOUR-SECRET",

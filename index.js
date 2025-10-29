@@ -11,6 +11,7 @@ const https = require("https");
 const log = require("./structs/log.js");
 const error = require("./structs/error.js");
 const functions = require("./structs/functions.js");
+const { migrateUsers } = require("./BetterReload/MigrationService.js");
 
 const app = express();
 
@@ -65,6 +66,7 @@ const version = packageJson.version;
 mongoose.set('strictQuery', true);
 mongoose.connect(config.mongodb.database, () => {
     log.backend("App successfully connected to MongoDB!");
+    migrateUsers();
 });
 mongoose.connection.on("error", err => {
     log.error("MongoDB failed to connect, please make sure you have MongoDB installed and running.");
@@ -80,12 +82,18 @@ fs.readdirSync("./routes").forEach(fileName => {
 });
 
 fs.readdirSync("./BetterReload").forEach(fileName => {
-    try { app.use(require(`./BetterReload/${fileName}`)); } 
-    catch (err) { log.error(`Load Error: ${fileName}`); }
+    if (fileName === "MigrationService.js") return; // Skip
+    try { 
+        app.use(require(`./BetterReload/${fileName}`)); 
+    } 
+    catch (err) { 
+        log.error(`Load Error: ${fileName}\n${err.stack}`); 
+    }
 });
 
 app.get("/unknown", (req, res) => {
     log.debug('GET /unknown endpoint called');
+    res.status(200).send('OK');
 });
 
 let server;
