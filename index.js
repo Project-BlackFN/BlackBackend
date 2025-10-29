@@ -24,7 +24,7 @@ let httpsServer;
 
 const sslDir = path.resolve(__dirname, "ssl");
 const certPath = path.join(sslDir, "fullchain.pem");
-const keyPath = path.join(sslDir, "privkey.key");
+const keyPath = path.join(sslDir, "privkey.pem");
 
 let useHTTPS = false;
 let httpsOptions;
