@@ -16,7 +16,29 @@ const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 const app = express.Router();
 
+const activeServerTimers = new Map();
+
 const serverAccounts = new Map();
+
+function resetServerHeartbeatTimer(server) {
+    const HEARTBEAT_TIMEOUT = 2 * 60 * 1000;
+
+    if (activeServerTimers.has(server._id.toString())) {
+        clearTimeout(activeServerTimers.get(server._id.toString()));
+    }
+
+    const timer = setTimeout(async () => {
+        try {
+            console.log(`Deleting server ${server.ip}:${server.port} due to missing heartbeat`);
+            await GameServers.deleteOne({ _id: server._id });
+            activeServerTimers.delete(server._id.toString());
+        } catch (err) {
+            console.error("Error deleting server due to missing heartbeat:", err);
+        }
+    }, HEARTBEAT_TIMEOUT);
+
+    activeServerTimers.set(server._id.toString(), timer);
+}
 
 const PLAYLIST_MAP = {
     "2": "/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo",
@@ -57,6 +79,8 @@ app.post("/bettermomentum/addserver", async (req, res) => {
             await existingServer.save();
             log.backend("Server updated");
 
+            resetServerHeartbeatTimer(existingServer);
+
             return res.json({
                 message: "Server already existed, updated successfully",
                 serverId: existingServer._id,
@@ -82,6 +106,8 @@ app.post("/bettermomentum/addserver", async (req, res) => {
 
         await newServer.save();
         log.backend("Register success");
+
+        resetServerHeartbeatTimer(newServer);
 
         return res.status(201).json({
             message: "Server registered successfully",
